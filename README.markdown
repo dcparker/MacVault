@@ -36,20 +36,23 @@ To view the backup history of a backup location:
 To restore latest copy of a backup:
 
     cd /Volumes/BACKUP_VOLUME/MacVault/SOME_BACKUP
-    macvault --restore
+    macvault --restore # macvault saves a new backup first
+    macvault --restore --fresh # macvault does NOT save a new backup first
     
-To restore a version at a current date:
+To restore a version at a specific date/time:
 
     cd /Volumes/BACKUP_VOLUME/MacVault/SOME_BACKUP
-    macvault --restore "YYYY-MM-DD HH:MM:SS"
+    macvault --restore --time "YYYY-MM-DD HH:MM:SS" # << must be understood by Time.parse
+    # Or you can use a ruby string that returns a time object. The days_and_times gem is included if available:
+    macvault --restore --time "(1.hour + 6.minutes).ago"
 
 Specify a time to restore from:
 
-    macvault --restore --time "1 hour ago"
+    macvault --restore --time "1.hour.ago"
 
 Supply a specific path to restore:
 
-    macvault --restore --time "1 hour ago" /path/to/file/to/restore
+    macvault --restore --time "1.hour.ago" /path/to/file/to/restore
 
 If you supply a path to restore, and not a time, and that file doesn't currently exist, the backup will look into the history and restore the latest version of the file:
 
