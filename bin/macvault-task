@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+
+# Command: macvault-task
+# Purpose: Perform all backups that are readily available.

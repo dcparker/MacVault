@@ -1,1 +1,4 @@
 #!/usr/bin/env ruby
+
+# Command: macvault
+# Purpose: Register/Create new backups, inspect and restore existing backups.
