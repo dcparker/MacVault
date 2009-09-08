@@ -2,3 +2,87 @@
 
 # Command: macvault
 # Purpose: Register/Create new backups, inspect and restore existing backups.
+
+require 'optparse'
+
+options = {}
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} [OPTIONS] [LOCATION]"
+
+  options[:verbose] = false
+  opts.on( '-v', '--verbose', "Show me what you're doing" ) do
+    options[:verbose] = true
+  end
+
+  
+  opts.on('--here', "Start backing up this directory.") do
+    options[:action] = 'here'
+  end
+
+  opts.on('--history', "Show backup history." ) do
+    options[:action] = 'history'
+  end
+
+  opts.on('--restore', "Restore this backup to its original location. Add a location to use a new location.") do
+    options[:action] = 'restore'
+    options[:fresh] = false
+  end
+
+  opts.on('--fresh', "Do not backup before restoring. Use only with --restore.") do
+    if options[:action] != 'restore'
+      puts "Use --fresh only with --restore option."
+      exit
+    end
+    options[:fresh] = true
+  end
+
+  options[:time] = nil
+  opts.on('--time TIME', "Reference the backup at specified TIME.") do |time|
+    options[:time] = time
+  end
+
+  opts.on('-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+end
+
+begin
+  optparse.parse!
+rescue => e
+  puts e
+  exit
+end
+
+require 'time'
+options[:time] = Time.parse(options[:time]) if options[:time]
+options[:location] = ARGV[0] if ARGV[0]
+
+puts "Options: #{options.inspect}"
+
+case options[:action]
+when 'here'
+  current_dir = Dir.pwd
+  dir_leaf = current_dir.match(/([^\/]+)\/?$/)[1]
+  `mkdir -p /Volumes/Pig\\ Will/Vault/#{dir_leaf}`
+  Dir.chdir("/Volumes/Pig Will/Vault/#{dir_leaf}")
+  `git init`
+  `git config core.compression 9`
+  `git config gc.auto 1000`
+  `git config repack.usedeltabaseoffset true`
+  Dir.chdir(current_dir)
+  `rm -rf .git`
+  `echo ".DS_Store" >> .gitignore`
+  `ln .gitignore backup-ignore.txt`
+  `echo "backup-ignore.txt" >> .gitignore`
+  `echo "#{current_dir}" > .git-backup-location`
+  `ln -s /Volumes/Pig\\ Will/Vault/#{dir_leaf}/.git .git`
+  `git add .git-backup-location`
+  `git commit -m "New backup location created."`
+  `rm .git`
+  puts "If no errors were output, everything's good!"
+when 'history'
+  puts 'NOT YET IMPLEMENTED...'
+when 'restore'
+  puts 'NOT YET IMPLEMENTED...'
+end
