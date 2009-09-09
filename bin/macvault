@@ -61,7 +61,7 @@ require 'time'
 options[:time] = Time.parse(options[:time]) if options[:time]
 options[:location] = ARGV[0] if ARGV[0]
 
-puts "Options: #{options.inspect}"
+# puts "Options: #{options.inspect}"
 
 
 
@@ -155,7 +155,7 @@ when 'here'
   `rm .git`
 when 'history'
   `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
-  puts `git whatchanged`
+  puts `git whatchanged -10`
   `rm .git`
 when 'restore'
   # To be run from inside a backup directory
