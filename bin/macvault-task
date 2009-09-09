@@ -3,3 +3,36 @@
 # Command: macvault-task
 # Purpose: Perform all backups that are readily available.
 
+$stderr.close
+$stderr = File.open("#{ENV['HOME']}/.MacVault.log", 'a')
+
+ENV["PATH"] = "/usr/local/bin:#{ENV["PATH"]}"
+
+require 'yaml'
+config = YAML.load_file("#{ENV['HOME']}/.MacVault")
+
+puts "Backup volume present: #{config[:backup_volume]}"
+
+if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
+  $stderr <<  "[#{Time.now}] backing up..."
+  $stderr.flush
+  Dir.glob("/Volumes/#{config[:backup_volume]}/MacVault/*").select {|d| File.directory?(d)}.each do |backup_dir|
+    Dir.chdir(backup_dir)
+    puts "In (#{Dir.pwd})"
+    $stderr << `git checkout -- .git-backup-location`
+    src_location = File.read('.git-backup-location').chomp
+    Dir.chdir(src_location)
+    puts "\tIn (#{Dir.pwd})"
+    puts `ln -s "#{backup_dir}/.git" .git`
+    puts "\tgit add --all"
+    puts `git add --all`
+    puts "\tgit commit -m \"Regular Backup\""
+    puts `git commit -m "Regular Backup"`
+    `rm .git`
+  end
+  last_backup = Time.now
+  `echo "#{last_backup.to_s}" > "#{ENV['HOME']}/.MacVault-last-backup"`
+  $stderr <<  " ..done! at [#{Time.now}]\n"
+else
+  $stderr << "[#{Time.now}] dry run\n"
+end

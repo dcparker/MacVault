@@ -14,7 +14,10 @@ optparse = OptionParser.new do |opts|
     options[:verbose] = true
   end
 
-  
+  opts.on('--setup', "Waits for a volume to be mounted in /Volumes, then selects that volume as the backup volume.") do
+    options[:action] = 'setup'
+  end
+
   opts.on('--here', "Start backing up this directory.") do
     options[:action] = 'here'
   end
@@ -60,29 +63,121 @@ options[:location] = ARGV[0] if ARGV[0]
 
 puts "Options: #{options.inspect}"
 
+
+
+
+
+# Get the backup volume, or configure it, before moving on.
+require 'yaml'
+unless File.exists?("#{ENV['HOME']}/.MacVault")
+  Dir.chdir('/Volumes')
+  puts "No backup volume configured. Please connect, or reconnect the volume you want to use as a backup volume..."
+  volumes = Dir.glob("*")
+  begin
+    current_volumes = volumes
+    volumes = Dir.glob("*")
+    sleep 1
+  end until volumes.length > current_volumes.length
+  backup_volume = (volumes - current_volumes)[0]
+
+  # Create the MacVault directory
+  `mkdir -p "/Volumes/#{backup_volume}/MacVault"`
+
+  # Save the backup volume configuration
+  File.open("#{ENV['HOME']}/.MacVault", 'w') do |f|
+    f << {:backup_volume => backup_volume}.to_yaml
+  end
+
+  `mkdir -p #{ENV['HOME']}/Library/LaunchAgents`
+  # Add the launchctl task
+  File.open("#{ENV['HOME']}/Library/LaunchAgents/com.behindlogic.MacVault.plist", 'w') do |f|
+    f << <<-EOPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC -//Apple Computer//DTD PLIST 1.0//EN http://www.apple.com/DTDs/PropertyList-1.0.dtd >
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.behindlogic.MacVault</string>
+    <key>Program</key>
+    <string>/usr/local/bin/macvault-task</string>
+    <key>KeepAlive</key>
+    <dict>
+      <key>PathState</key>
+      <dict>
+        <key>/Volumes/#{backup_volume}/MacVault</key>
+        <true/>
+      </dict>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Volumes/#{backup_volume}/MacVault</string>
+    <key>ExitTimeOut</key>
+    <integer>0</integer>
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+    <key>QueueDirectories</key>
+    <array>
+      <string>/Volumes/#{backup_volume}/MacVault</string>
+    </array>
+    <key>StartOnMount</key>
+    <true/>
+  </dict>
+</plist>
+EOPLIST
+  end
+  `launchctl unload "#{ENV['HOME']}/Library/LaunchAgents/com.behindlogic.MacVault.plist"`
+  `launchctl load "#{ENV['HOME']}/Library/LaunchAgents/com.behindlogic.MacVault.plist"`
+  puts "Added #{backup_volume.inspect} as a backup volume."
+end
+config = YAML.load_file("#{ENV['HOME']}/.MacVault")
+
+
+
+
+
+
+current_dir = Dir.pwd
+dir_leaf = current_dir.match(/([^\/]+)\/?$/)[1]
 case options[:action]
 when 'here'
-  current_dir = Dir.pwd
-  dir_leaf = current_dir.match(/([^\/]+)\/?$/)[1]
-  `mkdir -p /Volumes/Pig\\ Will/Vault/#{dir_leaf}`
-  Dir.chdir("/Volumes/Pig Will/Vault/#{dir_leaf}")
+  `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
+  `mkdir -p "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}"`
+  Dir.chdir("/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}")
   `git init`
   `git config core.compression 9`
   `git config gc.auto 1000`
   `git config repack.usedeltabaseoffset true`
   Dir.chdir(current_dir)
-  `rm -rf .git`
   `echo ".DS_Store" >> .gitignore`
-  `ln .gitignore backup-ignore.txt`
-  `echo "backup-ignore.txt" >> .gitignore`
   `echo "#{current_dir}" > .git-backup-location`
-  `ln -s /Volumes/Pig\\ Will/Vault/#{dir_leaf}/.git .git`
   `git add .git-backup-location`
   `git commit -m "New backup location created."`
+  puts "#{current_dir} is now being backed up to #{config[:backup_volume]}/MacVault/#{dir_leaf}."
   `rm .git`
-  puts "If no errors were output, everything's good!"
 when 'history'
-  puts 'NOT YET IMPLEMENTED...'
+  `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
+  puts `git whatchanged`
+  `rm .git`
 when 'restore'
-  puts 'NOT YET IMPLEMENTED...'
+  # To be run from inside a backup directory
+  `git checkout -- .git-backup-location`
+  src_location = File.read('.git-backup-location').chomp
+  `mkdir -p "#{src_location}"`
+  
+  restore_path = options[:location] || src_location
+  Dir.chdir(src_location)
+  `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
+  `mkdir -p "#{restore_path}"`
+  if options[:fresh]
+    restore_version = 'master^'
+  else
+    puts "Backing up first..."
+    `git add --all`
+    `git commit -m "Pre-restore Backup"`
+    restore_version = 'master^'
+  end
+  puts "Restoring #{restore_path}..."
+  `git checkout #{restore_version} #{restore_path}`
+  `git add --all`
+  `git commit -m "Post-restore Backup"`
+  `rm .git`
 end

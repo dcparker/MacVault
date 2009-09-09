@@ -5,8 +5,7 @@ MacVault is a simple, automated ruby-scripted git-based set-and-forget backup ut
 Here's how it works in a nutshell:
 
 - Backups are done by symlinking .git in the backed-up location to a .git in the backup folder on the backup volume. Simple git commands record and store everything not ignored by a .gitignore file.
-- The backup task is controlled by Mac's [launchctl](http://developer.apple.com/mac/library/documentation/Darwin/Reference/ManPages/man1/launchctl.1.html) / [launchd](http://developer.apple.com/macosx/launchd.html). Backups are performed every 5 minutes when a relevant directory is present. You will usually place this on an external drive, a local secondary hard disk or a network location.
-- Backup tasks backup whatever backups are available. You may have more than one backup location if you want, and they can duplicate backups or hold different portions of your backups.
+- The backup task is controlled by Mac's [launchctl](http://developer.apple.com/mac/library/documentation/Darwin/Reference/ManPages/man1/launchctl.1.html) / [launchd](http://developer.apple.com/macosx/launchd.html). You simply select a backup volume -- any volume that is mounted into /Volumes is allowed. This could be an external drive, a local secondary hard disk or a network location. The backup task will then run every 5 minutes whenever the selected backup volume is available.
 
 ## Requirements
 
