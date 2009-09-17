@@ -50,22 +50,6 @@ optparse = OptionParser.new do |opts|
   end
 end
 
-begin
-  optparse.parse!
-rescue => e
-  puts e
-  exit
-end
-
-require 'time'
-options[:time] = Time.parse(options[:time]) if options[:time]
-options[:location] = ARGV[0] if ARGV[0]
-
-# puts "Options: #{options.inspect}"
-
-
-
-
 
 # Get the backup volume, or configure it, before moving on.
 require 'yaml'
@@ -132,11 +116,31 @@ config = YAML.load_file("#{ENV['HOME']}/.MacVault")
 
 
 
-
-
-
 current_dir = Dir.pwd
 dir_leaf = current_dir.match(/([^\/]+)\/?$/)[1]
+
+
+
+if ARGV[0] == 'git'
+  puts "sh -c \"GIT_DIR=\\\"/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git\\\" #{ARGV.join(' ')}\""
+  exec "sh -c \"GIT_DIR=\\\"/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git\\\" #{ARGV.join(' ')}\""
+end
+
+begin
+  optparse.parse!
+rescue => e
+  puts e
+  exit
+end
+
+require 'time'
+options[:time] = Time.parse(options[:time]) if options[:time]
+options[:location] = ARGV[0] if ARGV[0]
+
+# puts "Options: #{options.inspect}"
+
+
+
 case options[:action]
 when 'here'
   `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
