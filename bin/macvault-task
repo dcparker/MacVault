@@ -29,6 +29,7 @@ if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
     puts "\tgit commit -m \"Regular Backup\""
     puts `git commit -m "Regular Backup"`
     `rm .git`
+    `rm -rf Archive/*` # Anything in the "Archive" folder gets backed up and then deleted.
   end
   last_backup = Time.now
   `echo "#{last_backup.to_s}" > "#{ENV['HOME']}/.MacVault-last-backup"`
