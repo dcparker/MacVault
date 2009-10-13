@@ -18,16 +18,15 @@ Backups are stored and updated in a packed git repository on the backup volume. 
 ## Install
 
     git clone git://github.com/dcparker/MacVault.git
-    sudo ln MacVault/bin/macvault /usr/local/bin
-    sudo ln MacVault/bin/macvault-task /usr/local/bin
-    rm -rf MacVault
+    cd MacVault
+    ./install
 
 ## Usage
 
 To begin backing up a new file location:
 
     cd /path/to/location
-    macvault --here
+    macvault --here --frequency 300  # set a frequency in seconds. Minimum is 300.
 
 To view the backup history of a backup location:
 
@@ -37,7 +36,7 @@ To view the backup history of a backup location:
 To restore latest copy of a backup:
 
     cd /Volumes/BACKUP_VOLUME/MacVault/SOME_BACKUP
-    macvault --restore # macvault saves a new backup first
+    macvault --restore # macvault saves a new backup first in a timestamped branch.
     macvault --restore --fresh # macvault does NOT save a new backup first
     
 To restore a version at a specific date/time:

@@ -168,6 +168,9 @@ when 'here'
 when 'history'
   puts `#{$git} whatchanged -10`
 when 'restore'
+  warn "THIS FEATURE IS NOT YET OFFICIALLY FUNCTIONAL!"
+  exit
+
   # To be run from inside a backup directory
   src_location = `#{$git} config core.x-backup-location`.chomp.gsub(/\$HOME/,ENV['HOME'])
   `mkdir -p "#{src_location}"`

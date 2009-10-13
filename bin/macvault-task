@@ -25,8 +25,8 @@ if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
     $git = "GIT_DIR=\"#{backup_dir}/.git\" git"
     puts "In (#{Dir.pwd})"
     frequency = `#{$git} config core.x-backup-frequency`.chomp.to_i
-    last_backup = `#{$git} config core.x-last-backup`.chomp; last_backup = last_backup.length > 0 ? Time.parse(last_backup) : Time.now - (frequency+10)
-    if last_backup + frequency < Time.now
+    last_backup = `#{$git} config core.x-last-backup`.chomp; last_backup = last_backup.length > 0 ? Time.parse(last_backup) : Time.now - (frequency+60)
+    if last_backup + frequency < Time.now - 10 # Give it 10 seconds of lee-way.
       src_location = `#{$git} config core.x-backup-location`.chomp.gsub(/\$HOME/,ENV['HOME'])
       Dir.chdir(src_location)
       puts "\tIn (#{Dir.pwd})"
