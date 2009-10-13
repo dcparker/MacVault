@@ -22,6 +22,10 @@ optparse = OptionParser.new do |opts|
     options[:action] = 'here'
   end
 
+  opts.on('--frequency FREQ', "Limit the frequency of backups on this location.") do |freq|
+    options[:frequency] = freq.gsub(/\D/,'').to_i
+  end
+
   opts.on('--history', "Show backup history." ) do
     options[:action] = 'history'
   end
@@ -118,6 +122,7 @@ config = YAML.load_file("#{ENV['HOME']}/.MacVault")
 
 current_dir = Dir.pwd
 dir_leaf = current_dir.match(/([^\/]+)\/?$/)[1]
+$git = "GIT_DIR=\"/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git\" git"
 
 
 
@@ -143,45 +148,75 @@ options[:location] = ARGV[0] if ARGV[0]
 
 case options[:action]
 when 'here'
-  `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
   `mkdir -p "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}"`
   Dir.chdir("/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}")
-  `git init`
-  `git config core.compression 9`
-  `git config gc.auto 1000`
-  `git config repack.usedeltabaseoffset true`
+  unless File.exists?('.git')
+    `git init`
+    `git config core.compression 9`
+    `git config gc.auto 1000`
+    `git config repack.usedeltabaseoffset true`
+  end
+  `git config core.x-backup-location "#{current_dir.gsub(/#{ENV['HOME']}/,'$HOME')}"`
+  `git config core.x-backup-frequency "#{options[:frequency] || 300}"`
   Dir.chdir(current_dir)
-  `echo ".DS_Store" >> .gitignore`
-  `echo "#{current_dir}" > .git-backup-location`
-  `git add .git-backup-location`
-  `git commit -m "New backup location created."`
-  puts "#{current_dir} is now being backed up to #{config[:backup_volume]}/MacVault/#{dir_leaf}."
-  `rm .git`
+  `echo ".DS_Store" >> .gitignore` unless File.exists?('.gitignore') && File.read('.gitignore') =~ /\.DS_Store/m
+  unless `#{$git} log -n 1 2>/dev/null` && $?.success?
+    `#{$git} add .gitignore`
+    system "#{$git} commit -m \"New backup location created.\""
+  end
+  puts "#{current_dir} will be backed up to /Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}\n\t- whenever #{config[:backup_volume]} is present#{"\n\t- at most every #{options[:frequency]} seconds" if options[:frequency]}"
 when 'history'
-  `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
-  puts `git whatchanged -10`
-  `rm .git`
+  puts `#{$git} whatchanged -10`
 when 'restore'
   # To be run from inside a backup directory
-  `git checkout -- .git-backup-location`
-  src_location = File.read('.git-backup-location').chomp
+  src_location = `#{$git} config core.x-backup-location`.chomp.gsub(/\$HOME/,ENV['HOME'])
   `mkdir -p "#{src_location}"`
   
   restore_path = options[:location] || src_location
-  Dir.chdir(src_location)
+  Dir.chdir(restore_path)
+  `mv .git .git.bak` if File.exists?('.git')
   `ln -s "/Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}/.git" .git`
-  `mkdir -p "#{restore_path}"`
   if options[:fresh]
-    restore_version = 'master^'
+    restore_version = 'master'
   else
     puts "Backing up first..."
+    `git checkout -b "Pre-restore #{Time.now.strftime("%Y-%m-%d %H:%M:%S")}"`
     `git add --all`
     `git commit -m "Pre-restore Backup"`
-    restore_version = 'master^'
+    `git checkout master`
+    restore_version = 'master'
   end
   puts "Restoring #{restore_path}..."
-  `git checkout #{restore_version} #{restore_path}`
+  `git reset --hard \"#{restore_version}\"`
+  puts "Backing up again..."
   `git add --all`
   `git commit -m "Post-restore Backup"`
   `rm .git`
+when 'restore-all'
+  warn "THIS FEATURE IS NOT YET OFFICIALLY FUNCTIONAL!"
+  exit
+  if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
+    puts "[#{Time.now}] Restoring everything from backup..."
+    puts "  ** THIS IS DESTRUCTIVE - You have 10 seconds to hit Ctrl+C..."
+    sleep 10
+    puts "Beginning full restore..."
+    $stdout.flush
+    Dir.glob("/Volumes/#{config[:backup_volume]}/MacVault/*").select {|d| File.directory?(d)}.each do |backup_dir|
+      Dir.chdir(backup_dir)
+      puts "In (#{Dir.pwd})"
+      puts `git checkout -- .git-backup-location`
+      src_location = File.read('.git-backup-location').chomp.gsub(/\$HOME/,ENV['HOME'])
+      Dir.chdir(src_location)
+      puts "\tIn (#{Dir.pwd})"
+      puts "\tgit add --all"
+      system "GIT_DIR=\"#{backup_dir}/.git\" git add --all -v"
+      puts "\tgit commit -m \"Regular Backup\""
+      system "GIT_DIR=\"#{backup_dir}/.git\" git commit -m \"Regular Backup\""
+    end
+    last_backup = Time.now
+    `echo "#{last_backup.to_s}" > "$HOME/.MacVault-last-backup"`
+    puts " ..done! at [#{Time.now}]\n"
+  else
+    
+  end
 end
