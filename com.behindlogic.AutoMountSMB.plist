@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC -//Apple Computer//DTD PLIST 1.0//EN http://www.apple.com/DTDs/PropertyList-1.0.dtd >
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.behindlogic.AutoMountSMB</string>
+    <key>Program</key>
+    <string>/usr/local/bin/mount-smb-if-present</string>
+    <key>KeepAlive</key>
+    <dict>
+      <key>NetworkState</key>
+      <true/>
+    </dict>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>5</integer>
+    <key>WorkingDirectory</key>
+    <string>/Volumes</string>
+    <key>ExitTimeOut</key>
+    <integer>0</integer>
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+  </dict>
+</plist>

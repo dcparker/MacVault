@@ -6,6 +6,7 @@
 require 'time'
 require 'yaml'
 
+
 ENV["PATH"] = '/usr/local/bin:/opt/local/bin:' + ENV["PATH"]
 
 config = YAML.load_file("#{ENV['HOME']}/.MacVault")
@@ -22,19 +23,32 @@ if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
     $stderr.flush
 
     Dir.chdir(backup_dir)
-    $git = "GIT_DIR=\"#{backup_dir}/.git\" git"
     puts "In (#{Dir.pwd})"
+    $git = "GIT_DIR=\"#{backup_dir}/.git\" git"
     frequency = `#{$git} config core.x-backup-frequency`.chomp.to_i
     last_backup = `#{$git} config core.x-last-backup`.chomp; last_backup = last_backup.length > 0 ? Time.parse(last_backup) : Time.now - (frequency+60)
+    mode = `#{$git} config core.x-backup-mode`.chomp
     if last_backup + frequency < Time.now - 10 # Give it 10 seconds of lee-way.
       src_location = `#{$git} config core.x-backup-location`.chomp.gsub(/\$HOME/,ENV['HOME'])
-      Dir.chdir(src_location)
-      puts "\tIn (#{Dir.pwd})"
       system "#{$git} config core.x-last-backup \"#{Time.now}\""
-      puts "\tgit add --all -v"
-      system "#{$git} add --all -v"
-      puts "\tgit commit -m \"Regular Backup\""
-      system "#{$git} commit -m \"Regular Backup\""
+      case mode
+      when 'git'
+        Dir.chdir(src_location)
+        puts "\tIn (#{Dir.pwd})"
+        puts "\tgit add --all -v"
+        system "#{$git} add --all -v"
+        puts "\tgit commit -m \"Regular Backup\""
+        system "#{$git} commit -m \"Regular Backup\""
+      when 'rsync'
+        folder_names = src_location.split(/[\/\\]/)
+        bk_folder = folder_names.pop
+        in_folder = folder_names.join('/')
+        Dir.chdir(in_folder)
+        puts "\tIn (#{Dir.pwd})"
+        system "rm -rf \".#{bk_folder}\"" # Remove the last backup thing.
+        system "mv \"#{bk_folder}\" \".#{bk_folder}\""
+        system "rsync -a --delete --link-dest=\".#{bk_folder}\" \"#{backup_dir}/\"  \"#{bk_folder}/\""
+      end
       $stderr <<  " .. done at [#{Time.now}]\n"
     else
       $stderr << " (no need - backed up recently)\n"

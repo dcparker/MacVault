@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ ! -d pigwill ]; then
+  mkdir /Volumes/piggy
+  if mount -t smbfs //dcparker:avjodfjl@192.168.1.90/pigwill /Volumes/piggy; then
+    mv /Volumes/piggy /Volumes/pigwill
+  else
+    rmdir /Volumes/piggy
+  fi
+fi

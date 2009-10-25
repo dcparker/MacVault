@@ -22,13 +22,22 @@ optparse = OptionParser.new do |opts|
     options[:action] = 'here'
   end
 
-  opts.on('--frequency FREQ', "Limit the frequency of backups on this location.") do |freq|
+  opts.on('--frequency FREQ', "Maximum frequency of backups on this location.") do |freq|
     options[:frequency] = freq.gsub(/\D/,'').to_i
+  end
+
+  options[:mode] = 'git'
+  opts.on('--livecopy', "Use rsync mode, which simply keeps an identical copy in the backup location. No history is kept, except for deleted files. No compression.") do
+    options[:mode] = 'rsync'
   end
 
   opts.on('--history', "Show backup history." ) do
     options[:action] = 'history'
   end
+
+  # opts.on('--reverse', "Reverse the backup, so the external Volume is backing up onto a local folder.") do
+  #   options[:reverse] = true
+  # end
 
   opts.on('--restore', "Restore this backup to its original location. Add a location to use a new location.") do
     options[:action] = 'restore'
@@ -73,7 +82,7 @@ unless File.exists?("#{ENV['HOME']}/.MacVault")
 
   # Save the backup volume configuration
   File.open("#{ENV['HOME']}/.MacVault", 'w') do |f|
-    f << {:backup_volume => backup_volume}.to_yaml
+    f << {:backup_volume => backup_volume, :mode => 'gitvault'}.to_yaml
   end
 
   `mkdir -p #{ENV['HOME']}/Library/LaunchAgents`
@@ -158,6 +167,8 @@ when 'here'
   end
   `git config core.x-backup-location "#{current_dir.gsub(/#{ENV['HOME']}/,'$HOME')}"`
   `git config core.x-backup-frequency "#{options[:frequency] || 300}"`
+  # Set mode (git|rsync)
+  `git config core.x-backup-mode "#{options[:mode]}"`
   Dir.chdir(current_dir)
   `echo ".DS_Store" >> .gitignore` unless File.exists?('.gitignore') && File.read('.gitignore') =~ /\.DS_Store/m
   unless `#{$git} log -n 1 2>/dev/null` && $?.success?
