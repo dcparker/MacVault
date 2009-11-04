@@ -27,17 +27,13 @@ optparse = OptionParser.new do |opts|
   end
 
   options[:mode] = 'git'
-  opts.on('--livecopy', "Use rsync mode, which simply keeps an identical copy in the backup location. No history is kept, except for deleted files. No compression.") do
-    options[:mode] = 'rsync'
+  opts.on('--mode MODE', "Specify the backup mode.\n\t'git' : [default] backs up everything in a git repo. Every backup creates a complete restore point.\n\t'rsync' : keeps an identical copy in the backup location. Faster to backup, NO live history is kept, NO compression.") do |mode|
+    options[:mode] = mode
   end
 
   opts.on('--history', "Show backup history." ) do
     options[:action] = 'history'
   end
-
-  # opts.on('--reverse', "Reverse the backup, so the external Volume is backing up onto a local folder.") do
-  #   options[:reverse] = true
-  # end
 
   opts.on('--restore', "Restore this backup to its original location. Add a location to use a new location.") do
     options[:action] = 'restore'
@@ -67,6 +63,7 @@ end
 # Get the backup volume, or configure it, before moving on.
 require 'yaml'
 unless File.exists?("#{ENV['HOME']}/.MacVault")
+  pwd = Dir.pwd
   Dir.chdir('/Volumes')
   puts "No backup volume configured. Please connect, or reconnect the volume you want to use as a backup volume..."
   volumes = Dir.glob("*")
@@ -82,7 +79,7 @@ unless File.exists?("#{ENV['HOME']}/.MacVault")
 
   # Save the backup volume configuration
   File.open("#{ENV['HOME']}/.MacVault", 'w') do |f|
-    f << {:backup_volume => backup_volume, :mode => 'gitvault'}.to_yaml
+    f << {:backup_volume => backup_volume}.to_yaml
   end
 
   `mkdir -p #{ENV['HOME']}/Library/LaunchAgents`
@@ -124,6 +121,7 @@ EOPLIST
   `launchctl unload "#{ENV['HOME']}/Library/LaunchAgents/com.behindlogic.MacVault.plist"`
   `launchctl load "#{ENV['HOME']}/Library/LaunchAgents/com.behindlogic.MacVault.plist"`
   puts "Added #{backup_volume.inspect} as a backup volume."
+  Dir.chdir(pwd)
 end
 config = YAML.load_file("#{ENV['HOME']}/.MacVault")
 
@@ -164,6 +162,7 @@ when 'here'
     `git config core.compression 9`
     `git config gc.auto 1000`
     `git config repack.usedeltabaseoffset true`
+    `git config core.ignorecase false`
   end
   `git config core.x-backup-location "#{current_dir.gsub(/#{ENV['HOME']}/,'$HOME')}"`
   `git config core.x-backup-frequency "#{options[:frequency] || 300}"`
@@ -171,6 +170,8 @@ when 'here'
   `git config core.x-backup-mode "#{options[:mode]}"`
   Dir.chdir(current_dir)
   `echo ".DS_Store" >> .gitignore` unless File.exists?('.gitignore') && File.read('.gitignore') =~ /\.DS_Store/m
+  # Ignore Caches too...
+  `echo "Caches" >> .gitignore` unless File.read('.gitignore') =~ /Caches/m
   unless `#{$git} log -n 1 2>/dev/null` && $?.success?
     `#{$git} add .gitignore`
     system "#{$git} commit -m \"New backup location created.\""

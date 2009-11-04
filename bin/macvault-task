@@ -31,23 +31,20 @@ if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
     if last_backup + frequency < Time.now - 10 # Give it 10 seconds of lee-way.
       src_location = `#{$git} config core.x-backup-location`.chomp.gsub(/\$HOME/,ENV['HOME'])
       system "#{$git} config core.x-last-backup \"#{Time.now}\""
+      Dir.chdir(src_location)
+      puts "\tIn (#{Dir.pwd})"
       case mode
       when 'git'
-        Dir.chdir(src_location)
-        puts "\tIn (#{Dir.pwd})"
         puts "\tgit add --all -v"
         system "#{$git} add --all -v"
         puts "\tgit commit -m \"Regular Backup\""
         system "#{$git} commit -m \"Regular Backup\""
       when 'rsync'
-        folder_names = src_location.split(/[\/\\]/)
-        bk_folder = folder_names.pop
-        in_folder = folder_names.join('/')
-        Dir.chdir(in_folder)
-        puts "\tIn (#{Dir.pwd})"
-        system "rm -rf \".#{bk_folder}\"" # Remove the last backup thing.
-        system "mv \"#{bk_folder}\" \".#{bk_folder}\""
-        system "rsync -a --delete --link-dest=\".#{bk_folder}\" \"#{backup_dir}/\"  \"#{bk_folder}/\""
+        # warn "Warning - RSYNC mode is not yet complete! (skipping backup now)"
+        # Just syncronize files...
+        # This currently just deletes deleted files. I'd like it to actually sync without deleting, then take the list
+        # of deleted files and archive them compressed into the git repo; then delete them from the live copy.
+        system "rsync -a --delete --exclude-from=\"#{src_location}/.gitignore\" \"#{src_location}/\" \"#{backup_dir}/\""
       end
       $stderr <<  " .. done at [#{Time.now}]\n"
     else
