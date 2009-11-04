@@ -22,6 +22,10 @@ optparse = OptionParser.new do |opts|
     options[:action] = 'here'
   end
 
+  opts.on('--info', "Display info about this backup location.") do
+    options[:action] = 'info'
+  end
+
   opts.on('--frequency FREQ', "Maximum frequency of backups on this location.") do |freq|
     options[:frequency] = freq.gsub(/\D/,'').to_i
   end
@@ -170,13 +174,20 @@ when 'here'
   `git config core.x-backup-mode "#{options[:mode]}"`
   Dir.chdir(current_dir)
   `echo ".DS_Store" >> .gitignore` unless File.exists?('.gitignore') && File.read('.gitignore') =~ /\.DS_Store/m
-  # Ignore Caches too...
+  # Ignore Caches and NoBackup too...
   `echo "Caches" >> .gitignore` unless File.read('.gitignore') =~ /Caches/m
+  `echo "NoBackup" >> .gitignore` unless File.read('.gitignore') =~ /NoBackup/m
   unless `#{$git} log -n 1 2>/dev/null` && $?.success?
     `#{$git} add .gitignore`
     system "#{$git} commit -m \"New backup location created.\""
   end
-  puts "#{current_dir} will be backed up to /Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}\n\t- whenever #{config[:backup_volume]} is present#{"\n\t- at most every #{options[:frequency]} seconds" if options[:frequency]}"
+  puts "#{current_dir} will be backed up to /Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}\n\t- whenever #{config[:backup_volume]} is present#{"\n\t- at most every #{options[:frequency]} seconds" if options[:frequency]}\n\t- Mode: #{mode}"
+when 'info'
+  frequency = `#{$git} config core.x-backup-frequency`.chomp
+  mode = `#{$git} config core.x-backup-mode`.chomp
+  last_backup = `#{$git} config core.x-last-backup`.chomp
+  last_backup = last_backup.length > 0 ? Time.parse(last_backup) : nil
+  puts "#{current_dir} will be backed up to /Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}\n\t- whenever #{config[:backup_volume]} is present#{"\n\t- at most every #{frequency} seconds" if frequency}\n\t- Mode: #{mode}#{"\n\t- Last Backup: "+last_backup.to_s if last_backup}"
 when 'history'
   puts `#{$git} whatchanged -10`
 when 'restore'
