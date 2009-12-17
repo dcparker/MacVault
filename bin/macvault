@@ -181,7 +181,7 @@ when 'here'
     `#{$git} add .gitignore`
     system "#{$git} commit -m \"New backup location created.\""
   end
-  puts "#{current_dir} will be backed up to /Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}\n\t- whenever #{config[:backup_volume]} is present#{"\n\t- at most every #{options[:frequency]} seconds" if options[:frequency]}\n\t- Mode: #{mode}"
+  puts "#{current_dir} will be backed up to /Volumes/#{config[:backup_volume]}/MacVault/#{dir_leaf}\n\t- whenever #{config[:backup_volume]} is present#{"\n\t- at most every #{options[:frequency]} seconds" if options[:frequency]}\n\t- Mode: #{options[:mode]}"
 when 'info'
   frequency = `#{$git} config core.x-backup-frequency`.chomp
   mode = `#{$git} config core.x-backup-mode`.chomp

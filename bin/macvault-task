@@ -18,6 +18,8 @@ if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
   $stderr = File.open("/Volumes/#{config[:backup_volume]}/MacVault/Backup.log", 'a')
   $stderr <<  "[#{Time.now}] Begin Backup\n"
 
+  backups_count = 0
+
   Dir.glob("/Volumes/#{config[:backup_volume]}/MacVault/*").select {|d| File.directory?(d)}.each do |backup_dir|
     $stderr << "\tBacking up #{backup_dir.match(/([^\/]+)$/)[1]}..."
     $stderr.flush
@@ -47,12 +49,14 @@ if File.directory?("/Volumes/#{config[:backup_volume]}/MacVault")
         system "rsync -a --delete --exclude-from=\"#{src_location}/.gitignore\" \"#{src_location}/\" \"#{backup_dir}/\""
       end
       $stderr <<  " .. done at [#{Time.now}]\n"
+      backups_count += 1
     else
       $stderr << " (no need - backed up recently)\n"
     end
   end
 
   $stderr <<  "[#{Time.now}] Backup Complete\n"
+  `say -v Trinoids "Backed up #{backups_count} location#{'s' if backups_count > 1}."` if backups_count > 0
 else
   warn "[#{Time.now}] dry run\n"
 end
